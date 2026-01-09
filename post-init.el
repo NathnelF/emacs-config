@@ -1,5 +1,27 @@
 (setq-default explicit-shell-file-name "/bin/bash")
 
+;; --- Platform Specific Configuration ---
+(cond
+ ;; macOS Settings
+ ((eq system-type 'darwin)
+  (use-package exec-path-from-shell
+    :ensure t
+    :config
+    (exec-path-from-shell-initialize)))
+
+ ;; Linux Settings
+ ((eq system-type 'gnu/linux)
+  ;; Usually path is fine, but you can add local bins here
+  (add-to-list 'exec-path "~/.local/bin"))
+
+ ;; Windows Settings
+ ((eq system-type 'windows-nt)
+  (setq default-directory "C:/Users/YourName/Documents/")
+  ;; Point to where you installed ripgrep/clangd on Windows
+  (add-to-list 'exec-path "C:/Program Files/LLVM/bin")))
+
+
+
 (use-package org
   :ensure t
   :config
@@ -100,7 +122,7 @@
                     "--cross-file-rename"
                     "--completion-style=detailed"
                     "--function-arg-placeholders"
-                    "--fallback-style={BasedOnStyle: Microsoft, IndentWidth: 4, TabWidth: 4, UseTab: Never, ColumnLimit: 80}"))))
+                    "--fallback-style=Microsoft"))))
 
 (with-eval-after-load 'eglot
   ;; Format on save for C/C++ files
