@@ -1,4 +1,58 @@
+;; Ensure adding the following compile-angel code at the very beginning
+;; of your `~/.emacs.d/post-init.el` file, before all other packages.
+(use-package compile-angel
+  :demand t
+  :ensure t
+  :custom
+  ;; Set `compile-angel-verbose` to nil to suppress output from compile-angel.
+  ;; Drawback: The minibuffer will not display compile-angel's actions.
+  (compile-angel-verbose t)
+
+  :config
+  ;; The following directive prevents compile-angel from compiling your init
+  ;; files. If you choose to remove this push to `compile-angel-excluded-files'
+  ;; and compile your pre/post-init files, ensure you understand the
+  ;; implications and thoroughly test your code. For example, if you're using
+  ;; the `use-package' macro, you'll need to explicitly add:
+  ;; (eval-when-compile (require 'use-package))
+  ;; at the top of your init file.
+  (push "/init.el" compile-angel-excluded-files)
+  (push "/early-init.el" compile-angel-excluded-files)
+  (push "/pre-init.el" compile-angel-excluded-files)
+  (push "/post-init.el" compile-angel-excluded-files)
+  (push "/pre-early-init.el" compile-angel-excluded-files)
+  (push "/post-early-init.el" compile-angel-excluded-files)
+
+  ;; A local mode that compiles .el files whenever the user saves them.
+  ;; (add-hook 'emacs-lisp-mode-hook #'compile-angel-on-save-local-mode)
+
+  ;; A global mode that compiles .el files prior to loading them via `load' or
+  ;; `require'. Additionally, it compiles all packages that were loaded before
+  ;; the mode `compile-angel-on-load-mode' was activated.
+  (compile-angel-on-load-mode 1))
+
+(use-package buffer-terminator
+  :ensure t
+  :custom
+  ;; Enable/Disable verbose mode to log buffer cleanup events
+  (buffer-terminator-verbose nil)
+
+  ;; Set the inactivity timeout (in seconds) after which buffers are considered
+  ;; inactive (default is 30 minutes):
+  (buffer-terminator-inactivity-timeout (* 30 60)) ; 30 minutes
+
+  ;; Define how frequently the cleanup process should run (default is every 10
+  ;; minutes):
+  (buffer-terminator-interval (* 10 60)) ; 10 minutes
+
+  :config
+  (buffer-terminator-mode 1))
+
 (setq-default explicit-shell-file-name "/bin/bash")
+
+;; Make RET act as "y" in y-or-n prompts
+(define-key y-or-n-p-map (kbd "RET") 'act)
+(define-key y-or-n-p-map (kbd "<return>") 'act)
 
 ;; --- Platform Specific Configuration ---
 (cond
@@ -9,10 +63,6 @@
     :config
     (exec-path-from-shell-initialize)))
 
- ;; Linux Settings
- ((eq system-type 'gnu/linux)
-  ;; Usually path is fine, but you can add local bins here
-  (add-to-list 'exec-path "~/.local/bin"))
 
  ;; Windows Settings
  ((eq system-type 'windows-nt)
@@ -92,6 +142,196 @@
 (mapc #'disable-theme custom-enabled-themes)
 (load-theme 'doom-moonlight t)
 
+;; Recentf is an Emacs package that maintains a list of recently
+;; accessed files, making it easier to reopen files you have worked on
+;; recently.
+(use-package recentf
+  :ensure nil
+  :commands (recentf-mode recentf-cleanup)
+  :hook
+  (after-init . recentf-mode)
+
+  :custom
+  (recentf-auto-cleanup (if (daemonp) 300 'never))
+  (recentf-exclude
+   (list "\\.tar$" "\\.tbz2$" "\\.tbz$" "\\.tgz$" "\\.bz2$"
+         "\\.bz$" "\\.gz$" "\\.gzip$" "\\.xz$" "\\.zip$"
+         "\\.7z$" "\\.rar$"
+         "COMMIT_EDITMSG\\'"
+         "\\.\\(?:gz\\|gif\\|svg\\|png\\|jpe?g\\|bmp\\|xpm\\)$"
+         "-autoloads\\.el$" "autoload\\.el$"))
+
+  :config
+  ;; A cleanup depth of -90 ensures that `recentf-cleanup' runs before
+  ;; `recentf-save-list', allowing stale entries to be removed before the list
+  ;; is saved by `recentf-save-list', which is automatically added to
+  ;; `kill-emacs-hook' by `recentf-mode'.
+  (add-hook 'kill-emacs-hook #'recentf-cleanup -90))
+
+;; savehist is an Emacs feature that preserves the minibuffer history between
+;; sessions. It saves the history of inputs in the minibuffer, such as commands,
+;; search strings, and other prompts, to a file. This allows users to retain
+;; their minibuffer history across Emacs restarts.
+(use-package savehist
+  :ensure nil
+  :commands (savehist-mode savehist-save)
+  :hook
+  (after-init . savehist-mode)
+  :custom
+  (savehist-autosave-interval 600)
+  (savehist-additional-variables
+   '(kill-ring                        ; clipboard
+     register-alist                   ; macros
+     mark-ring global-mark-ring       ; marks
+     search-ring regexp-search-ring)))
+
+(use-package dired
+    :ensure nil
+    :commands (dired)
+    :hook
+    ((dired-mode . dired-hide-details-mode)
+     (dired-mode . hl-line-mode)
+     (dired-mode . auto-revert-mode))
+    :config
+    (setq dired-recursive-copies 'always)
+    (setq dired-recursive-deletes 'always)
+    (setq delete-by-moving-to-trash t)
+    (setq dired-dwim-target t)
+    (setq dired-kill-when-opening-new-dired-buffer t)
+
+      ;; hjkl navigation
+  (define-key dired-mode-map (kbd "j") #'dired-next-line)
+  (define-key dired-mode-map (kbd "k") #'dired-previous-line)
+  (define-key dired-mode-map (kbd "h") #'dired-up-directory)
+  (define-key dired-mode-map (kbd "l") #'dired-find-file)
+
+  (define-key dired-mode-map (kbd "r") #'dired-do-rename)
+  (define-key dired-mode-map (kbd "d") #'dired-flag-file-deletion)
+  (define-key dired-mode-map (kbd "x") #'dired-do-flagged-delete)
+  (define-key dired-mode-map (kbd "D") #'dired-do-delete)
+
+  ;; (define-key dired-mode-map (kbd "c") nil)
+  ;; (define-key dired-mode-map (kbd "c d") #'dired-create-directory)
+  ;; (define-key dired-mode-map (kbd "c f") #'dired-create-empty-file)
+  )
+
+(use-package dired-ranger
+  :ensure t
+  :after dired
+  :bind (:map dired-mode-map
+         ("y" . dired-ranger-copy)    
+         ("X" . dired-ranger-move)    
+         ("p" . dired-ranger-paste)))
+  ;; :config
+  ;; (advice-add 'dired-ranger-paste :after
+  ;;             (lambda (&rest _)
+  ;;               (revert-buffer)))
+  ;; (advice-add 'dired-ranger-move :after
+  ;;             (lambda (&rest _)
+;;               (revert-buffer))))
+
+;; refresh after operations.
+(with-eval-after-load 'dired
+  ;; List of operations that should trigger refresh
+  (dolist (func '(dired-do-rename
+                  dired-do-flagged-delete
+                  dired-do-delete
+                  dired-create-directory
+                  dired-create-empty-file))
+    (advice-add func :after (lambda (&rest _) (revert-buffer)))))
+
+(with-eval-after-load 'dired-ranger
+  (dolist (func '(dired-ranger-paste
+                  dired-ranger-move))
+    (advice-add func :after (lambda (&rest _) (revert-buffer)))))
+
+;; dired: Group directories first
+(with-eval-after-load 'dired
+  (let ((args "--group-directories-first -ahlv"))
+    (when (or (eq system-type 'darwin) (eq system-type 'berkeley-unix))
+      (if-let* ((gls (executable-find "gls")))
+          (setq insert-directory-program gls)
+        (setq args nil)))
+    (when args
+      (setq dired-listing-switches args))))
+
+(with-eval-after-load 'dired
+  (defun my/dired-create-file-at-point ()
+    "Create file, defaulting to directory at point or parent directory of file at point."
+    (interactive)
+    (let* ((file-at-point (dired-get-file-for-visit))
+           (default-dir (cond
+                         ;; If on a directory, use it
+                         ((and file-at-point (file-directory-p file-at-point))
+                          (file-name-as-directory file-at-point))
+                         ;; If on a file, use its parent directory
+                         (file-at-point
+                          (file-name-directory file-at-point))
+                         ;; Otherwise use current directory
+                         (t default-directory)))
+           (filename (read-file-name "Create file: " default-dir)))
+      (write-region "" nil filename)
+      (revert-buffer)
+      (dired-goto-file filename)))
+  
+  (defun my/dired-create-directory-at-point ()
+    "Create directory, defaulting to directory at point or parent directory of file at point."
+    (interactive)
+    (let* ((file-at-point (dired-get-file-for-visit))
+           (default-dir (cond
+                         ;; If on a directory, use it
+                         ((and file-at-point (file-directory-p file-at-point))
+                          (file-name-as-directory file-at-point))
+                         ;; If on a file, use its parent directory
+                         (file-at-point
+                          (file-name-directory file-at-point))
+                         ;; Otherwise use current directory
+                         (t default-directory)))
+           (dirname (read-directory-name "Create directory: " default-dir)))
+      (make-directory dirname t)
+      (revert-buffer)
+      (dired-goto-file dirname)))
+  
+  ;; Bindings
+  (define-key dired-mode-map (kbd "c") nil)
+  (define-key dired-mode-map (kbd "c f") #'my/dired-create-file-at-point)
+  (define-key dired-mode-map (kbd "c d") #'my/dired-create-directory-at-point))
+
+  (use-package dired-subtree
+    :after dired
+    :bind
+    ( :map dired-mode-map
+      ("<tab>" . dired-subtree-toggle)
+      ("TAB" . dired-subtree-toggle)
+      ("<backtab>" . dired-subtree-remove)
+      ("S-TAB" . dired-subtree-remove))
+    :config
+    (setq dired-subtree-use-backgrounds nil))
+
+
+
+(use-package outline
+  :ensure nil
+  :commands outline-minor-mode
+  :hook
+  ((emacs-lisp-mode . outline-minor-mode)
+   ;; Use " ▼" instead of the default ellipsis "..." for folded text to make
+   ;; folds more visually distinctive and readable.
+   (outline-minor-mode
+    .
+    (lambda()
+      (let* ((display-table (or buffer-display-table (make-display-table)))
+             (face-offset (* (face-id 'shadow) (ash 1 22)))
+             (value (vconcat (mapcar (lambda (c) (+ face-offset c)) " ▼"))))
+        (set-display-table-slot display-table 'selective-display value)
+        (setq buffer-display-table display-table))))))
+
+(use-package pyvenv
+  :ensure t
+  :config
+  (pyvenv-mode 1)) ;; This enables automatic mode-line display and project-based activation
+
+
 (use-package yasnippet
   :ensure t
   :config
@@ -107,7 +347,11 @@
   ((c-mode . eglot-ensure)
    (c++-mode . eglot-ensure)
    (c-ts-mode . eglot-ensure)      ; Tree-sitter C mode
-   (c++-ts-mode . eglot-ensure))
+   (c++-ts-mode . eglot-ensure)
+   (python-mode . eglot-ensure)
+   (python-ts-mode . eglot-ensure)
+   (cmake-mode . eglot-ensure)
+   (cmake-ts-mode . eglot-ensure))
 
   :custom
   (eglot-autoshutdown t)
@@ -122,7 +366,18 @@
                     "--cross-file-rename"
                     "--completion-style=detailed"
                     "--function-arg-placeholders"
-                    "--fallback-style=Microsoft"))))
+                    "--fallback-style=Microsoft")))
+  
+  (add-to-list 'eglot-server-programs
+               '((python-mode python-ts-mode)
+                 . ("basedpyright-langserver" "--stdio")))
+  (add-to-list 'eglot-server-programs
+               '((cmake-mode cmake-ts-mode)
+                 . ("neocmakelsp" "stdio"))))
+
+(use-package cmake-mode
+  :ensure t
+  :mode ("CMakeLists\\.txt\\'" "\\.cmake\\'"))
 
 (with-eval-after-load 'eglot
   ;; Format on save for C/C++ files
@@ -152,6 +407,9 @@
 (use-package consult-projectile
   :ensure t
   :after (consult projectile))
+
+(use-package embrace
+  :ensure t)
 
 
 (use-package meow
@@ -223,6 +481,7 @@
      '("l" . meow-right)
      '("L" . meow-right-expand)
      '("m" . meow-join)
+     '("M" . embrace-commander)
      '("n" . meow-search)
      '("o" . meow-block)
      '("O" . meow-to-block)
@@ -243,19 +502,6 @@
      '("y" . meow-save)
      '("Y" . kill-ring-save)
      '("z" . meow-pop-selection)
-     '("X" . (lambda () (interactive)
-               (meow--direction-backward)
-               (meow--cancel-selection)
-               (set-mark (point))
-               (back-to-indentation)
-               (meow--select)))
-     '("C" . (lambda () (interactive)
-               (meow--direction-forward)
-               (meow--cancel-selection)
-               (set-mark (point))
-               (end-of-line)
-               (skip-syntax-backward " ")
-               (meow--select)))
      '("'" . repeat)
      '("<escape>" . ignore)))
   
@@ -320,6 +566,9 @@
    '("'" . my/toggle-side-windows)
    '("y" . org-agenda)
    '("Y" . org-capture)
+   '("v" . consult-line)
+   '("[" . outline-hide-subtree)
+   '("]" . outline-show-subtree)
    '("RET" . org-open-file)
     '("w" . other-window)))
 
@@ -488,7 +737,6 @@
 (add-hook 'eshell-mode-hook
           (lambda ()
             (corfu-mode -1)))
-
 
 ;;org mode search for todos
 (use-package org-ql
