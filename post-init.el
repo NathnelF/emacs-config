@@ -31,6 +31,8 @@
   ;; the mode `compile-angel-on-load-mode' was activated.
   (compile-angel-on-load-mode 1))
 
+
+
 (use-package buffer-terminator
   :ensure t
   :custom
@@ -61,16 +63,7 @@
   (use-package exec-path-from-shell
     :ensure t
     :config
-    (exec-path-from-shell-initialize)))
-
-
- ;; Windows Settings
- ((eq system-type 'windows-nt)
-  (setq default-directory "C:/Users/YourName/Documents/")
-  ;; Point to where you installed ripgrep/clangd on Windows
-  (add-to-list 'exec-path "C:/Program Files/LLVM/bin")))
-
-
+    (exec-path-from-shell-initialize))))
 
 (use-package org
   :ensure t
@@ -98,9 +91,14 @@
 (electric-pair-mode 1)
 
 (defun post-init ()
-  "open post init.el in .minimal-config"
+  "Open post-init.el in the appropriate config directory."
   (interactive)
-  (find-file "~/.minimal-emacs.d/post-init.el"))
+  (find-file
+   (cond
+    ((eq system-type 'windows-nt)
+     "~/.emacs.d/post-init.el")
+    (t
+     "~/.minimal-emacs.d/post-init.el"))))
 
 (setq line-number-mode t)
 (setq column-number-mode t)
@@ -363,9 +361,8 @@
                  . ("clangd"
                     "--background-index"
                     "--header-insertion=iwyu"
-                    "--cross-file-rename"
                     "--completion-style=detailed"
-                    "--function-arg-placeholders"
+                    "--function-arg-placeholders=true"
                     "--fallback-style=Microsoft")))
   
   (add-to-list 'eglot-server-programs
@@ -822,3 +819,22 @@
       (let ((org-link-frame-setup 
              (cons '(file . find-file) org-link-frame-setup)))
         (org-open-at-point)))))
+
+;; Set default directory based on OS
+(cond
+ ;; Windows
+ ((eq system-type 'windows-nt)
+  (setq default-directory "C:/Projects/"))
+ 
+ ;; Linux
+ ((eq system-type 'gnu/linux)
+  (setq default-directory "~/Documents/"))
+ 
+ ;; macOS
+ ((eq system-type 'darwin)
+  (setq default-directory "~/Documents/")))
+
+
+;; Set font on Windows
+(when (eq system-type 'windows-nt)
+  (set-frame-font "Cascadia Code-10" nil t))
