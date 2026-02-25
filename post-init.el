@@ -63,7 +63,16 @@
   (use-package exec-path-from-shell
     :ensure t
     :config
-    (exec-path-from-shell-initialize))))
+    (exec-path-from-shell-initialize)))
+
+
+ ;; Windows Settings
+ ((eq system-type 'windows-nt)
+  (setq default-directory "C:/Users/YourName/Documents/")
+  ;; Point to where you installed ripgrep/clangd on Windows
+  (add-to-list 'exec-path "C:/Program Files/LLVM/bin")))
+
+
 
 (use-package org
   :ensure t
@@ -71,8 +80,11 @@
   (setq org-directory "~/org")  ; Where you keep org files
   (setq org-default-notes-file (concat org-directory "/notes.org"))
   
-  ;; Agenda files
-  (setq org-agenda-files '("~/org"))
+  (setq org-capture-templates
+        '(("t" "Todo" entry
+           (file+headline org-default-notes-file "Inbox")
+           "* TODO %?\n")))
+
   
   ;; TODO keywords
   (setq org-todo-keywords
@@ -94,6 +106,7 @@
             (require 'esh-module)))
 
 (electric-pair-mode 1)
+(electric-indent-mode 1)
 
 (defun post-init ()
   "Open post-init.el in the appropriate config directory."
@@ -340,42 +353,39 @@
   :config
   (yas-global-mode 1))
 
-(use-package eglot
-  :ensure nil
-  :commands (eglot-ensure
-             eglot-rename
-             eglot-format-buffer)
+(use-package yaml-mode
+  :ensure t
+  :mode ("\\.ya?ml\\'" . yaml-mode))
 
-  :hook
-  ((c-mode . eglot-ensure)
-   (c++-mode . eglot-ensure)
-   (c-ts-mode . eglot-ensure)      ; Tree-sitter C mode
-   (c++-ts-mode . eglot-ensure)
-   (python-mode . eglot-ensure)
-   (python-ts-mode . eglot-ensure)
-   (cmake-mode . eglot-ensure)
-   (cmake-ts-mode . eglot-ensure))
-
-  :custom
-  (eglot-autoshutdown t)
-  (eglot-sync-connect nil)
-  
+(use-package lsp-mode
+  :hook ((c++-mode . lsp)
+         (c-mode . lsp)
+         (before-save . lsp-format-buffer))
+  :commands lsp
   :config
-  (add-to-list 'eglot-server-programs
-               '((c-mode c++-mode c-ts-mode c++-ts-mode)
-                 . ("clangd"
-                    "--background-index"
-                    "--header-insertion=iwyu"
-                    "--completion-style=detailed"
-                    "--function-arg-placeholders=true"
-                    "--fallback-style=Microsoft")))
-  
-  (add-to-list 'eglot-server-programs
-               '((python-mode python-ts-mode)
-                 . ("basedpyright-langserver" "--stdio")))
-  (add-to-list 'eglot-server-programs
-               '((cmake-mode cmake-ts-mode)
-                 . ("neocmakelsp" "stdio"))))
+  (setq lsp-completion-provider :capf)
+  (setq lsp-eldoc-enable-hover nil)
+  (setq lsp-signature-auto-activate nil)  ;; Add this line
+  (setq lsp-semantic-tokens-apply-modifiers nil)
+  (setq lsp-headerline-breadcrumb-enable nil)
+  (setq lsp-enable-on-type-formatting nil)
+  (setq lsp-semantic-tokens-enable t)  ; Enable semantic tokens
+  (setq lsp-enable-semantic-highlighting t))
+
+(setq-default tab-width 2)
+(setq c-basic-offset 4)  ; 2-space indent for C/C++
+
+(defun my/indent-right ()
+  "Indent region by tab-width and keep it selected."
+  (interactive)
+  (indent-rigidly (region-beginning) (region-end) tab-width)
+  (setq deactivate-mark nil))
+
+(defun my/indent-left ()
+  "Unindent region by tab-width and keep it selected."
+  (interactive)
+  (indent-rigidly (region-beginning) (region-end) (- tab-width))
+  (setq deactivate-mark nil))
 
 (use-package cmake-mode
   :ensure t
@@ -413,6 +423,8 @@
 (use-package embrace
   :ensure t)
 
+(use-package expand-region
+  :ensure t)
 
 (use-package meow
   :ensure t
@@ -485,7 +497,7 @@
      '("m" . meow-join)
      '("M" . embrace-commander)
      '("n" . meow-search)
-     '("o" . meow-block)
+     '("o" . er/expand-region)
      '("O" . meow-to-block)
      '("p" . meow-yank)
      '("P" . yank)
@@ -498,9 +510,13 @@
      '("u" . meow-undo)
      '("U" . meow-undo-in-selection)
      '("v" . meow-visit)
+     '("}" . end-of-line)
+     '("{" . beginning-of-line)
      '("w" . meow-mark-word)
      '("W" . meow-mark-symbol)
      '("x" . meow-line)
+     '("<" . my/indent-left)
+     '(">" . my/indent-right)
      '("y" . meow-save)
      '("Y" . kill-ring-save)
      '("z" . meow-pop-selection)
@@ -558,21 +574,25 @@
    '("o" . my/toggle-eshell)
    '("d" . xref-find-definitions)
    '("D" . projectile-find-references)
-   '("r" . eglot-rename)
-   '("u" . eglot-format-buffer)
-   '("L" . query-replace-regexp)
-   '("l" . replace-regexp)
+   '("r" . lsp-rename)
+   '("u" . lsp-format-buffer)
+   '("E" . query-replace-regexp)
+   '("e" . replace-regexp)
    '(";" . comment-or-uncomment-region)
    '("<right>" . next-window-any-frame)
    '("<left>" . previous-window-any-frame)
-   '("e" . next-window-any-frame)
-   '("q" . previous-window-any-frame)
    '("'" . my/toggle-side-windows)
-   '("y" . org-agenda)
-   '("Y" . org-capture)
+   '("Y" . org-agenda)
+   '("y" . org-capture)
    '("v" . consult-line)
-   '("[" . outline-hide-subtree)
-   '("]" . outline-show-subtree)
+   '("J" . avy-goto-line)
+   '("j" . avy-goto-char-2)
+   '("-" . outline-hide-subtree)
+   '("=" . outline-show-subtree)
+   '("]" . end-of-line)
+   '("[" . beginning-of-line)
+   '("{" . beginning-of-buffer)
+   '("}" . end-of-buffer)
    '("RET" . org-open-file)
     '("w" . other-window)))
 
@@ -613,40 +633,6 @@
 
 (global-set-key (kbd "C-c T") #'treemacs)
 
-;; (use-package popper
-;;   :ensure t
-;;   :bind (("C-`" . popper-toggle)
-;;          ("M-`" . popper-cycle)
-;;          ("C-M-`" . popper-toggle-type))
-;;   :init
-;;   (setq popper-reference-buffers
-;;         '("\\*eshell\\*"
-;;           "\\*shell\\*"
-;;           "\\*term\\*"
-;;           "\\*vterm\\*"
-;;           help-mode
-;;           compilation-mode))
-;;   (popper-mode +1)
-;;   (popper-echo-mode +1)
-;;   
-;;   :config
-;;   (setq popper-display-control t)
-;;   (setq popper-display-function #'display-buffer-at-bottom)
-;;   (setq popper-window-height 0.33)
-;;   
-;;   ;; Fix for redisplay issues
-;;   (setq popper-group-function nil)  ; Disable grouping which can cause issues
-;;   
-;;   ;; Force redisplay after toggling
-;;   (advice-add 'popper-toggle :after 
-;;               (lambda (&rest _) 
-;;                 (redisplay t))))
-;; 
-;; ;; Add to meow leader for easy access
-;; (with-eval-after-load 'meow
-;;   (meow-leader-define-key
-;;    '("'" . popper-toggle)))  ; SPC ` to toggle popup
-
 (use-package ace-window
   :ensure t
   :config
@@ -680,29 +666,23 @@
              '("\\*Help\\*"
                (display-buffer-in-side-window)
                (window-height . 0.4)
-               (side . right)
+               (side . bottom)
                (slot . 0)))
 
 (add-to-list 'display-buffer-alist
              '("\\*Messages\\*"
                (display-buffer-in-side-window)
                (window-height . 0.4)
-               (side . right)
+               (side . bottom)
                (slot . 0)))
 
 (add-to-list 'display-buffer-alist
              '("\\*Warnings\\*"
                (display-buffer-in-side-window)
                (window-height . 0.4)
-               (side . right)
+               (side . bottom)
                (slot . 0)))
 
-;; (add-to-list 'display-buffer-alist
-;;              '("\\*Project TODOs\\*"
-;;                (display-buffer-in-side-window)
-;;                (window-height . 0.33)
-;;                (side . bottom)
-;;                (slot . 0)))
 
 ;; Hide mode-line for these buffers
 (add-hook 'eshell-mode-hook #'hide-mode-line-mode)
@@ -714,33 +694,32 @@
   (meow-leader-define-key
    '("'" . my/toggle-side-windows)))
 
-(use-package corfu
+(use-package company
   :ensure t
-  :init
-  (global-corfu-mode)
+  :hook (after-init . global-company-mode)
   :config
   ;; Auto-popup settings
-  (setq corfu-auto t)                 ; Enable auto completion
-  (setq corfu-auto-delay 0.115)         ; Delay before popup (in seconds)
-  (setq corfu-auto-prefix 1)          ; Minimum prefix length to trigger
-  
-  ;; Other useful settings
-  (setq corfu-cycle t)                ; Enable cycling through candidates
-  (setq corfu-quit-no-match 'separator) ; Don't quit if no match
-  (setq corfu-preview-current nil)    ; Don't preview current candidate
-  (setq corfu-preselect 'prompt)      ; Preselect the prompt
-  (setq corfu-on-exact-match nil)     ; Don't auto-insert exact matches
-  
-  ;; Keybindings
-  (define-key corfu-map (kbd "TAB") #'corfu-next)
-  (define-key corfu-map (kbd "<tab>") #'corfu-next)
-  (define-key corfu-map (kbd "S-TAB") #'corfu-previous)
-  (define-key corfu-map (kbd "<backtab>") #'corfu-previous)
-  (define-key corfu-map (kbd "RET") #'corfu-insert))
+  (setq company-idle-delay 0.115)
+  (setq company-minimum-prefix-length 1)
 
-(add-hook 'eshell-mode-hook
-          (lambda ()
-            (corfu-mode -1)))
+  ;; Other useful settings
+  (setq company-selection-wrap-around t)
+  (setq company-require-match nil)
+  (setq company-tooltip-align-annotations t)
+
+  ;; Prioritize capf (what lsp-mode hooks into)
+  (setq company-backends '((company-capf company-dabbrev-code) company-dabbrev))
+
+  ;; Don't use company in eshell
+  (add-hook 'eshell-mode-hook (lambda () (company-mode -1)))
+
+  :bind (:map company-active-map
+         ("TAB"       . company-select-next)
+         ("<tab>"     . company-select-next)
+         ("S-TAB"     . company-select-previous)
+         ("<backtab>" . company-select-previous)
+         ("RET"       . company-complete-selection)
+         ("<return>"  . company-complete-selection)))
 
 ;;org mode search for todos
 (use-package org-ql
@@ -752,38 +731,110 @@
   (if (not (project-current))
       (message "Not in a project!")
     (let* ((project-root (project-root (project-current t)))
+           (project-name (file-name-nondirectory (directory-file-name project-root)))
+           (output-file (expand-file-name 
+                        (format "%s-todos.org" project-name)
+                        org-directory))
            (files (project-files (project-current t)))
            (todos '())
            (file-count 0)
            (matched-count 0))
       
-      (message "Searching %d files in %s..." (length files) project-root)
+      (message "Scanning %d files in %s..." (length files) project-root)
       
       ;; Search through files for TODO comments
       (dolist (file files)
-        (when (string-match-p "\\.[ch]\\(pp\\)?$" file)  ; Fixed regex
-          (setq file-count (1+ file-count))
-          (with-temp-buffer
-            (insert-file-contents (expand-file-name file project-root))
-            (goto-char (point-min))
-            ;; Match TODO(name): comment
-            (while (re-search-forward "//\\s-*TODO(\\([^)]+\\)):\\s-*\\(.+\\)$" nil t)
-              (setq matched-count (1+ matched-count))
-              (let ((person (match-string 1))
-                    (task (match-string 2))
-                    (line (line-number-at-pos))
-                    (file-path (expand-file-name file project-root)))
-                (push (list person task file-path line) todos))))))
+        (let ((is-c    (string-match-p "\\.[ch]\\(pp\\)?$" file))
+              (is-py   (string-match-p "\\.py$" file)))
+          (when (or is-c is-py)
+            (setq file-count (1+ file-count))
+            (with-temp-buffer
+              (insert-file-contents (expand-file-name file project-root))
+              (goto-char (point-min))
+              (let ((todo-regex
+                     (if is-py
+                         "#\\s-*TODO(\\([^)]+\\)):\\s-*\\(.+\\)$"
+                       "//\\s-*TODO(\\([^)]+\\)):\\s-*\\(.+\\)$")))
+                (while (re-search-forward todo-regex nil t)
+                  (setq matched-count (1+ matched-count))
+                  (let ((person (match-string 1))
+                        (task (match-string 2))
+                        (line (line-number-at-pos))
+                        (file-path (expand-file-name file project-root)))
+                    (push (list person task file-path line) todos))))))))
       
-      (message "Searched %d C/C++ files, found %d TODOs" file-count matched-count)
+      (message "Searched %d C/C++/Python files, found %d TODOs" file-count matched-count)
       
       ;; Display results
       (if todos
-          (my/display-todos todos)
-        (message "No TODOs found. Make sure comments are formatted as: // TODO(name): description")))))
+          (progn
+            (my/save-todos-to-file todos output-file project-name)
+            (my/display-todos-buffer todos)
+            (message "TODOs saved to %s" output-file))
+        (message "No TODOs found.")))))
 
-(defun my/display-todos (todos)
-  "Display TODO list grouped by person."
+(defun my/save-todos-to-file (todos filename project-name)
+  "Save TODOs to org file, only replacing the 'Scanned TODOs' section."
+  (if (file-exists-p filename)
+      ;; File exists - update only the scanned section
+      (with-current-buffer (find-file-noselect filename)
+        (goto-char (point-min))
+        
+        ;; Find the "Scanned TODOs" section
+        (if (re-search-forward "^\\* Scanned TODOs" nil t)
+            (progn
+              ;; Delete the entire Scanned TODOs section
+              (org-mark-subtree)
+              (delete-region (region-beginning) (region-end)))
+          ;; If section doesn't exist, go to end
+          (goto-char (point-max))
+          (insert "\n"))
+        
+        ;; Insert fresh scanned TODOs
+        (insert "* Scanned TODOs\n")
+        (insert (format "  :PROPERTIES:\n  :UPDATED: %s\n  :END:\n\n"
+                       (format-time-string "%Y-%m-%d %H:%M")))
+        
+        (let ((grouped (seq-group-by #'car todos)))
+          (dolist (group grouped)
+            (let ((person (car group))
+                  (tasks (cdr group)))
+              (insert (format "** Tasks for %s\n" person))  ; No TODO here!
+              (dolist (task tasks)
+                (let ((desc (nth 1 task))
+                      (file (nth 2 task))
+                      (line (nth 3 task)))
+                  (insert (format "*** TODO %s\n" desc))
+                  (insert (format "    [[file:%s::%d][%s:%d]]\n\n" 
+                                file line 
+                                (file-name-nondirectory file) line)))))))
+        
+        (save-buffer))
+    
+    ;; File doesn't exist - create fresh
+    (with-temp-file filename
+      (insert (format "#+TITLE: %s TODOs\n" project-name))
+      (insert (format "#+DATE: %s\n\n" (format-time-string "%Y-%m-%d %H:%M")))
+      (insert "* Scanned TODOs\n")
+      (insert (format "  :PROPERTIES:\n  :UPDATED: %s\n  :END:\n\n"
+                     (format-time-string "%Y-%m-%d %H:%M")))
+      
+      (let ((grouped (seq-group-by #'car todos)))
+        (dolist (group grouped)
+          (let ((person (car group))
+                (tasks (cdr group)))
+            (insert (format "** Tasks for %s\n" person))  ; No TODO!
+            (dolist (task tasks)
+              (let ((desc (nth 1 task))
+                    (file (nth 2 task))
+                    (line (nth 3 task)))
+                (insert (format "*** TODO %s\n" desc))
+                (insert (format "    [[file:%s::%d][%s:%d]]\n\n" 
+                              file line 
+                              (file-name-nondirectory file) line))))))))))
+
+(defun my/display-todos-buffer (todos)
+  "Display TODOs in a temporary buffer for quick viewing."
   (let ((buf (get-buffer-create "*Project TODOs*")))
     (with-current-buffer buf
       (read-only-mode -1)
@@ -816,31 +867,25 @@
 
 ;; Add RET binding directly in org-mode
 (with-eval-after-load 'org
-  ;; Default RET opens in other window
-  (define-key org-mode-map (kbd "M-<return>") #'org-open-at-point)
+  (defun my/org-return-current-window ()
+    "Follow link in current window if on link, otherwise normal return."
+    (interactive)
+    (if (org-in-regexp org-link-any-re)
+        (let ((org-link-frame-setup 
+               (cons '(file . find-file) org-link-frame-setup)))
+          (org-open-at-point))
+      (org-return)))
   
-  ;; 'o' opens in current window
-  (define-key org-mode-map (kbd "RET") 
-    (lambda () 
-      (interactive)
-      (let ((org-link-frame-setup 
-             (cons '(file . find-file) org-link-frame-setup)))
-        (org-open-at-point)))))
-
-;; Set default directory based on OS
-(cond
- ;; Windows
- ((eq system-type 'windows-nt)
-  (setq default-directory "C:/Projects/"))
- 
- ;; Linux
- ((eq system-type 'gnu/linux)
-  (setq default-directory "~/Documents/"))
- 
- ;; macOS
- ((eq system-type 'darwin)
-  (setq default-directory "~/Documents/")))
-
+  (defun my/org-return-other-window ()
+    "Follow link in other window if on link, otherwise normal return."
+    (interactive)
+    (if (org-in-regexp org-link-any-re)
+        (org-open-at-point)  ; Default behavior opens in other window
+      (org-return)))
+  
+  ;; Bind them
+  (define-key org-mode-map (kbd "RET") #'my/org-return-current-window)
+  (define-key org-mode-map (kbd "M-RET") #'my/org-return-other-window))
 
 ;; Set font on Windows
 (when (eq system-type 'windows-nt)
