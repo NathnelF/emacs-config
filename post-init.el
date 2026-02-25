@@ -68,7 +68,7 @@
 
  ;; Windows Settings
  ((eq system-type 'windows-nt)
-  (setq default-directory "C:/Users/YourName/Documents/")
+  (setq default-directory "C:/Projects")
   ;; Point to where you installed ripgrep/clangd on Windows
   (add-to-list 'exec-path "C:/Program Files/LLVM/bin")))
 
@@ -369,6 +369,8 @@
   (setq lsp-semantic-tokens-apply-modifiers nil)
   (setq lsp-headerline-breadcrumb-enable nil)
   (setq lsp-enable-on-type-formatting nil)
+  (setq lsp-completion-enable-additional-text-edits nil)
+  (setq lsp-clients-clangd-args '("--header-insertion=never"))
   (setq lsp-semantic-tokens-enable t)  ; Enable semantic tokens
   (setq lsp-enable-semantic-highlighting t))
 
