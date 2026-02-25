@@ -88,6 +88,11 @@
             (split-window-right)
             (balance-windows)))
 
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (require 'eshell)
+            (require 'esh-module)))
+
 (electric-pair-mode 1)
 
 (defun post-init ()
@@ -555,11 +560,13 @@
    '("D" . projectile-find-references)
    '("r" . eglot-rename)
    '("u" . eglot-format-buffer)
-   '("E" . query-replace-regexp)
-   '("e" . replace-regexp)
+   '("L" . query-replace-regexp)
+   '("l" . replace-regexp)
    '(";" . comment-or-uncomment-region)
    '("<right>" . next-window-any-frame)
    '("<left>" . previous-window-any-frame)
+   '("e" . next-window-any-frame)
+   '("q" . previous-window-any-frame)
    '("'" . my/toggle-side-windows)
    '("y" . org-agenda)
    '("Y" . org-capture)
@@ -837,4 +844,8 @@
 
 ;; Set font on Windows
 (when (eq system-type 'windows-nt)
-  (set-frame-font "Cascadia Code-10" nil t))
+  (add-hook 'after-make-frame-functions
+          (lambda (frame)
+            (with-selected-frame frame
+              (set-face-attribute 'default nil :font "Cascadia Mono" :height 100)))))
+
